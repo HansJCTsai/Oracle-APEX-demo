@@ -8,7 +8,7 @@ wwv_flow_imp.component_begin (
 ,p_release=>'26.1.5'
 ,p_default_workspace_id=>9274577264219039
 ,p_default_application_id=>101
-,p_default_id_offset=>9459774277770428
+,p_default_id_offset=>9663907514246593
 ,p_default_owner=>'DEVOPSDEMO'
 );
 wwv_flow_imp_page.create_page(
@@ -23,10 +23,10 @@ wwv_flow_imp_page.create_page(
 ,p_page_component_map=>'13'
 );
 wwv_flow_imp_page.create_page_plug(
- p_id=>wwv_flow_imp.id(18771519032003736)
+ p_id=>wwv_flow_imp.id(28435426546250329)
 ,p_plug_name=>'Demo APP'
 ,p_static_id=>'demo-app'
-,p_title=>'APP Version 2.0'
+,p_title=>'APP Version 1.0.1'
 ,p_region_template_options=>'#DEFAULT#'
 ,p_plug_template=>2675494171183407654
 ,p_plug_display_sequence=>10
@@ -40,7 +40,7 @@ wwv_flow_imp_page.create_page_plug(
   'output_as', 'HTML')).to_clob
 );
 wwv_flow_imp_page.create_page_plug(
- p_id=>wwv_flow_imp.id(18775489991070329)
+ p_id=>wwv_flow_imp.id(28439397505316922)
 ,p_plug_name=>'New'
 ,p_static_id=>'new'
 ,p_title=>'DevOps Demo'
@@ -49,7 +49,7 @@ wwv_flow_imp_page.create_page_plug(
 ,p_plug_display_sequence=>10
 ,p_plug_item_display_point=>'ABOVE'
 ,p_location=>null
-,p_plug_header=>unistr('\9019\662F\00A0GitHub Actions \4F48\7F72!')
+,p_plug_header=>unistr('\9019\662F GitHub Actions \4F48\7F72')
 ,p_attributes=>wwv_flow_t_plugin_attributes(wwv_flow_t_varchar2(
   'expand_shortcuts', 'N',
   'output_as', 'HTML')).to_clob
