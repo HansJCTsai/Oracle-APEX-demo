@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-dev:
-    name: Deploy to DEV
+  deploy-demo:
+    name: Deploy to DEMO
     runs-on: ubuntu-latest
     environment: dev            # 在 Settings → Environments 建立 dev，放 DEV 的 Secrets
     steps:
@@ -49,36 +49,36 @@ jobs:
             "$DB_USER/$DB_PASSWORD@$DB_SERVICE" \
             @scripts/deploy.sql "$APEX_WORKSPACE" "$APEX_APP_ID" "$DB_USER"
 
-  # 選配：正式環境要由負責人在 GitHub 上按「Approve」後才會執行
-  # 到 Settings → Environments → production → Required reviewers 設定核准人
-  # 並在 Repository variables 新增 ENABLE_PROD = true 才會啟用
-  deploy-prod:
-    name: Deploy to PROD (manual approval)
-    needs: deploy-dev
-    if: ${{ vars.ENABLE_PROD == 'true' }}
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Install SQLcl
-        run: |
-          curl -sSL -o sqlcl.zip https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
-          unzip -q sqlcl.zip
-          echo "$PWD/sqlcl/bin" >> "$GITHUB_PATH"
-      - name: Restore wallet
-        run: echo "${{ secrets.WALLET_B64 }}" | base64 -d > wallet.zip
-      - name: Import APEX application
-        env:
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_SERVICE: ${{ secrets.DB_SERVICE }}
-          APEX_WORKSPACE: ${{ vars.APEX_WORKSPACE }}
-          APEX_APP_ID: ${{ vars.APEX_APP_ID }}
-        run: |
-          sql -S -cloudconfig wallet.zip \
-            "$DB_USER/$DB_PASSWORD@$DB_SERVICE" \
-            @scripts/deploy.sql "$APEX_WORKSPACE" "$APEX_APP_ID" "$DB_USER"
+  # # 選配：正式環境要由負責人在 GitHub 上按「Approve」後才會執行
+  # # 到 Settings → Environments → production → Required reviewers 設定核准人
+  # # 並在 Repository variables 新增 ENABLE_PROD = true 才會啟用
+  # deploy-prod:
+  #   name: Deploy to PROD (manual approval)
+  #   needs: deploy-demo
+  #   if: ${{ vars.ENABLE_PROD == 'true' }}
+  #   runs-on: ubuntu-latest
+  #   environment: prd
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         distribution: temurin
+  #         java-version: '17'
+  #     - name: Install SQLcl
+  #       run: |
+  #         curl -sSL -o sqlcl.zip https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+  #         unzip -q sqlcl.zip
+  #         echo "$PWD/sqlcl/bin" >> "$GITHUB_PATH"
+  #     - name: Restore wallet
+  #       run: echo "${{ secrets.WALLET_B64 }}" | base64 -d > wallet.zip
+  #     - name: Import APEX application
+  #       env:
+  #         DB_USER: ${{ secrets.DB_USER }}
+  #         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  #         DB_SERVICE: ${{ secrets.DB_SERVICE }}
+  #         APEX_WORKSPACE: ${{ vars.APEX_WORKSPACE }}
+  #         APEX_APP_ID: ${{ vars.APEX_APP_ID }}
+  #       run: |
+  #         sql -S -cloudconfig wallet.zip \
+  #           "$DB_USER/$DB_PASSWORD@$DB_SERVICE" \
+  #           @scripts/deploy.sql "$APEX_WORKSPACE" "$APEX_APP_ID" "$DB_USER"
