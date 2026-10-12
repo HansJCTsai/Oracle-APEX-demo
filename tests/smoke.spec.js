@@ -36,26 +36,39 @@ async function login(page) {
   await expect(page.locator('#P9999_USERNAME')).toHaveCount(0, { timeout: 30_000 });
 }
 
-test('流程 1：可登入，且畫面顯示預期文字', async ({ page }) => {
+test('測試流程 1：可登入，且畫面顯示預期文字', async ({ page }) => {
   await login(page);
 
-  if (expectedText) {
-    await expect(
-      page.locator('body'),
-      `驗證失敗：畫面上找不到預期文字「${expectedText}」。請確認 APEX 畫面與 tests/expected.txt 是否一致`,
-    ).toContainText(expectedText, { timeout: 15_000 });
-  }
-
-  // 不管內容為何，都存一張截圖，Demo 時可以直接給大家看
+  // 不管內容為何，都先存一張截圖，Demo 時可以直接給大家看
   await page.screenshot({ path: 'test-results/1-logged-in.png', fullPage: true });
+
+  if (expectedText) {
+    try {
+      await expect(page.locator('body')).toContainText(expectedText, { timeout: 15_000 });
+    } catch {
+      // 失敗時把目前畫面上的文字開頭一起印出來，方便判斷是文字不一致還是頁面不對
+      const seen = (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 300);
+      throw new Error(
+        `驗證失敗：畫面上找不到預期文字「${expectedText}」。請確認 APEX 畫面與 tests/expected.txt 是否一致。` +
+        `目前畫面文字開頭：${seen}`,
+      );
+    }
+  }
 });
 
-test('流程 2：開使用者選單並登出，回到登入頁', async ({ page }) => {
+test('測試流程 2：開使用者選單並登出，回到登入頁', async ({ page }) => {
   await login(page);
 
   // 右上角使用者選單（按鈕上顯示登入帳號名稱，APEX 可能轉成小寫）
-  await page.getByRole('button', { name: new RegExp(user, 'i') }).first().click();
-  await page.getByRole('menuitem', { name: /sign out|登出/i }).click();
+  // 頁面剛載入時選單可能還沒準備好，所以「選單項目沒出現就點按鈕」，並在時限內重試
+  await page.waitForLoadState('networkidle').catch(() => {});
+  const menuButton = page.getByRole('button', { name: new RegExp(user, 'i') }).first();
+  const signOut = page.getByRole('menuitem', { name: /sign out|登出/i });
+  await expect(async () => {
+    if (!(await signOut.isVisible())) await menuButton.click();
+    await expect(signOut).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
+  await signOut.click();
 
   // 登出後應回到登入頁
   await expect(page.locator('#P9999_USERNAME')).toBeVisible({ timeout: 30_000 });
