@@ -9,7 +9,14 @@ apex-demo/
 ├─ .github/workflows/deploy.yml   # 自動部署流程（DEV 自動、PROD 需人工核准）
 ├─ scripts/
 │  ├─ export.sh                   # 把 APEX App 匯出成可 diff 的拆分檔
-│  └─ deploy.sql                  # 把拆分檔匯入目標資料庫
+│  ├─ deploy.sql                  # 把拆分檔匯入目標資料庫
+│  ├─ stage_deploy.sql            # 先匯入成「暫時副本」（App ID + 1000）供測試
+│  └─ stage_remove.sql            # 測完刪除暫時副本
+├─ tests/
+│  ├─ smoke.spec.js               # Playwright：部署前在暫時副本走兩條流程（登入看畫面、登出）並截圖
+│  └─ expected.txt                # 畫面上應該出現的文字（例如「歡迎 v1」）
+├─ playwright.config.js
+├─ package.json / package-lock.json
 ├─ apex/                          # 匯出的 App 放這裡（apex/f<App ID>/...）
 └─ .gitignore                     # 不讓 wallet 進版控
 ```
@@ -56,6 +63,39 @@ apex-demo/
 | 7 | 等綠燈（約 1–2 分鐘），回 APEX 頁面重新整理 | 變更已自動上線 |
 
 **備案**：網路不穩時，事先錄一段第 5–7 步的螢幕錄影；或準備一個已經跑成功的 Actions 紀錄頁面給大家看。
+
+## 選配：部署前用 Playwright 自動驗證（驗證通過才部署）
+
+流程：`git push` → **Playwright 驗證** → 部署 DEV →（選配，核准後）部署 PROD。
+
+為什麼可以「先驗證再部署」：UI 測試需要一個跑起來的 App，所以 Actions 先把新版匯入成一份**暫時副本**（App ID = 正式 App ID + 1000，別名 `STG<ID>`），Playwright 對這份副本測試，測完不論成敗都刪除副本。**DEV 現有的 App 在驗證通過之前完全不會被動到**；驗證失敗時，部署 DEV 與 PROD 都會被略過。
+
+Playwright 會走兩條流程：①登入並確認畫面出現 `tests/expected.txt` 裡的文字；②登入後開使用者選單、登出、確認回到登入頁。截圖（`1-logged-in.png`、`2-signed-out.png`）存成 artifact（Actions 執行頁最下方的 Artifacts）。沒設定下面三項時，驗證 job 會自動略過，直接部署。
+
+1. Repository variable `APEX_APP_URL`：在瀏覽器「登出狀態」下執行 App，把登入頁網址整串貼上，格式為 `https://……/ords/r/<workspace>/<App 別名>/login`。
+2. `dev` Environment secret `APEX_TEST_USER`：`DEVUSER`。
+3. `dev` Environment secret `APEX_TEST_PASSWORD`：DEVUSER 的密碼。
+
+測試網址由 `APEX_APP_URL` 自動推算：把網址裡的 App 別名換成副本的別名 `stg<ID>`（例如 `…/ords/r/devopsdemo_ws/stg1101/login`）。副本使用同一個 Workspace 與 Schema，所以 DEVUSER 可直接登入。
+
+Demo 時：改 APEX 標題為「歡迎 v2」→ 同步把 `tests/expected.txt` 改成「歡迎 v2」→ export → push。驗證不過（畫面文字和 expected.txt 不同）時，Actions 會在第一關紅燈，**DEV 與 PROD 都不會被部署**。
+
+本機試跑：
+
+```bash
+npm ci && npx playwright install chromium
+APEX_APP_URL='https://…/ords/r/<workspace>/<別名>/login' APEX_TEST_USER=DEVUSER APEX_TEST_PASSWORD='…' npx playwright test
+```
+
+### 示範「測試失敗」（Demo 用）
+
+**做法 A（最快，不用改任何檔案）**：GitHub → Actions → Deploy APEX app → Run workflow，在 `expected_text` 欄位故意填一段畫面上不存在的文字（例如 `歡迎 v999`）→ Run workflow。`Verify before deploy (Playwright)` 會變紅燈，錯誤訊息寫著找不到「歡迎 v999」，Artifacts 裡的截圖可看到實際畫面；`Deploy to DEV` 與 `Deploy to PROD` 都會被略過（DEV 仍是上一版）。
+
+**做法 B（走 commit 流程）**：把 `tests/expected.txt` 改成 `歡迎 v999` → `git add . && git commit -m "示範測試失敗" && git push`。因為 workflow 也監聽 `tests/**`，push 就會觸發，結果同 A。
+
+**做法 C（最貼近真實）**：在 APEX 把標題改成「歡迎 v2」並 export、push，但故意不改 `tests/expected.txt`，驗證會因為畫面是 v2、預期是 v1 而失敗。
+
+**復原**：重新執行 workflow 並讓 `expected_text` 留空（或把 `tests/expected.txt` 改回和畫面一致再 push），就會回到綠燈。
 
 ## 常見問題
 
